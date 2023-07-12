@@ -1,5 +1,16 @@
-﻿string pathFrom = args[0]; //first param from cmd/terminal for getting start directory
-string pathTo   = args[1];  //secons param from cmd/terminal for getting end directory
+﻿using System.Diagnostics;
+using System.Text.Json;
+
+string pathFrom = string.Empty;
+string pathTo = string.Empty;
+
+string jsonLoad = File.ReadAllText("appsettings.json");
+
+using JsonDocument doc = JsonDocument.Parse(jsonLoad);
+JsonElement element = doc.RootElement;
+
+pathFrom = element.GetProperty("CopyDirectorySettings").GetProperty("PathFrom").ToString();
+pathTo = element.GetProperty("CopyDirectorySettings").GetProperty("PathTo").ToString();
 
 FileSystemWatcher watcher;
 
@@ -11,7 +22,6 @@ try
                                 | NotifyFilters.CreationTime
                                 | NotifyFilters.DirectoryName
                                 | NotifyFilters.FileName
-                                | NotifyFilters.LastAccess
                                 | NotifyFilters.LastWrite
                                 | NotifyFilters.Security
                                 | NotifyFilters.Size
@@ -125,7 +135,7 @@ void OnDeleted(object sender, FileSystemEventArgs e)
 
 void Pipeline()
 {
-    CopyDirectory(pathFrom, pathTo);
+    //CopyDirectory(pathFrom, pathTo);
     BuildProject();
     MoveDirectory();
 }
@@ -146,7 +156,21 @@ void CopyDirectory(string sourcePath, string targetPath)
 
 void BuildProject()
 {
-
+    using(Process winProcess = new()){
+        ProcessStartInfo startInfo = new();
+        startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+        if (OperatingSystem.IsWindows())
+        {
+            startInfo.FileName = "cmd.exe";
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            startInfo.FileName = "/bin/bash";
+        }
+        startInfo.Arguments = $"/c cd \"{pathFrom}\"&dotnet publish -o \"{pathTo}\""; //looping while executing
+        winProcess.StartInfo = startInfo;
+        winProcess.Start();
+    }
 }
 
 void MoveDirectory()
